@@ -92,13 +92,12 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 /* ---------- game cards ---------- */
 .games{display:grid;gap:clamp(14px,2vw,22px);
   grid-template-columns:repeat(auto-fill,minmax(min(100%,500px),1fr))}
-.game{background:
+.game{display:flex;flex-direction:column;gap:.25rem;background:
     linear-gradient(180deg, oklch(100% 0 0 / .018), transparent 40%),
     var(--surface);
   border:1px solid var(--line-soft);border-radius:var(--r);
   padding:clamp(14px,2.2vw,22px);box-shadow:0 1px 2px oklch(0% 0 0 / .3)}
-.match{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-  margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid var(--line-soft)}
+.match{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:.25rem;border-bottom:1px solid var(--line-soft)}
 .match h2{font-family:var(--font-display);font-weight:600;font-size:21px;margin:0;
   letter-spacing:-.01em;color:var(--fg)}
 .match h2 .at{color:var(--fg-faint);font-style:italic;font-weight:400;padding:0 5px}
@@ -107,7 +106,7 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 
 /* ---------- player lane ---------- */
 .lane{display:grid;grid-template-columns:1fr auto;gap:7px 14px;
-  padding:19px 11px 20px;border-radius:var(--r-sm);
+  padding:1rem;border-radius:var(--r-sm);
   transition:background .18s var(--ease);
   opacity:0;transform:translateY(7px);animation:rise .5s var(--ease) forwards}
 @keyframes rise{to{opacity:1;transform:none}}
