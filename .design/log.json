@@ -1,8 +1,11 @@
 [
+  { "date": "2026-10-08", "scope": "page", "archetype": "Console",
+    "style": "swiss/systematic + editorial", "axes": ["form", "texture"],
+    "brief": "NHL Goal-Scorer Edge · sharp bettor · LIGHT betting-sheet data table; warm paper, Newsreader serif figures + Hanken Grotesk, single green value accent; reflows to cards" },
   { "date": "2026-10-08", "scope": "page", "archetype": "Leaderboard/Dashboard",
     "style": "broadcast-quant + instrument", "axes": ["temperature", "register"],
-    "brief": "NHL Goal-Scorer Edge · sharp bettor · signature ice/gold edge-meter; cold=likelihood, warm=value; Archivo + JetBrains Mono" },
+    "brief": "NHL Goal-Scorer Edge · dark ice/gold edge-meter (rejected: user wanted light)" },
   { "date": "2026-10-08", "scope": "page", "archetype": "Dashboard",
     "style": "organic-editorial + precise-data", "axes": ["form", "encoding"],
-    "brief": "NHL Goal-Scorer Edge · bettor scanning tonight's slate · probability lanes not tables (superseded)" }
+    "brief": "NHL Goal-Scorer Edge · dark probability lanes (superseded)" }
 ]
