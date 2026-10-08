@@ -92,6 +92,7 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 /* ---------- game cards ---------- */
 .games{display:grid;gap:clamp(14px,2vw,22px);
   grid-template-columns:repeat(auto-fill,minmax(min(100%,500px),1fr))}
+.games.flat{grid-template-columns:1fr}
 .game{display:flex;flex-direction:column;gap:.25rem;background:
     linear-gradient(180deg, oklch(100% 0 0 / .018), transparent 40%),
     var(--surface);
@@ -124,6 +125,7 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 .nm{font-family:var(--font-display);font-weight:600;font-size:17px;color:var(--fg);
   letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--fg-faint);flex:none}
+.gm{font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--ice);opacity:.8;flex:none}
 
 /* right column: the value chip / point stat */
 .side{grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;
@@ -180,6 +182,10 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 </header>
 
 <div class="controls">
+  <div class="seg" role="group" aria-label="view">
+    <button data-view="game" aria-pressed="true">By game</button>
+    <button data-view="all" aria-pressed="false">All players</button>
+  </div>
   <div class="seg" role="group" aria-label="sort order">
     <button data-sort="p_goal" aria-pressed="true">Most likely</button>
     <button data-sort="ev" aria-pressed="false">Best value</button>
@@ -201,13 +207,17 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 
 <script>
 const DATA = __DATA__;
-let sortKey="p_goal", valOnly=false;
+let sortKey="p_goal", valOnly=false, view="game";
 const MAXP=0.5;
 
 const pct=x=>x==null?"—":(x*100).toFixed(0)+"%";
 const pct1=x=>x==null?"—":((x>=0?"+":"")+(x*100).toFixed(1)+"%");
 const am=o=>o==null?"—":((o>0?"+":"")+Math.round(o));
 const fair=p=>p==null?"—":am(p>=0.5?-100*p/(1-p):100*(1-p)/p);
+const isVal=p=>p.ev!=null&&p.ev>0;
+const sortFn=(a,b)=>{const av=a[sortKey],bv=b[sortKey];
+  if(av==null&&bv==null)return b.p_goal-a.p_goal;
+  if(av==null)return 1; if(bv==null)return -1; return bv-av;};
 
 function metaBar(){
   const m=DATA, r=m.requests_remaining;
@@ -223,23 +233,25 @@ function metaBar(){
   document.getElementById("meta").innerHTML=parts.join("");
 }
 
-function laneHTML(p,i){
-  const isVal=p.ev!=null&&p.ev>0;
+function laneHTML(p,i,showGame){
+  const val=isVal(p);
   const w=Math.max(4,Math.min(100,(p.p_goal/MAXP)*100));
+  const d=Math.min(i,14)*45;
   let side;
   if(p.vegas_odds==null){
     side=`<span class="chip none">no line yet</span>
           <span class="pt">pt <b>${pct(p.p_point)}</b></span>`;
   }else{
-    side=`<span class="chip ${isVal?'pos':'neg'}">${isVal?'+EV ':''}${pct1(p.ev)}</span>
+    side=`<span class="chip ${val?'pos':'neg'}">${val?'+EV ':''}${pct1(p.ev)}</span>
           <span class="odds"><b>Veg ${am(p.vegas_odds)}</b> · fair ${fair(p.p_goal)}</span>
           <span class="pt">pt <b>${pct(p.p_point)}</b></span>`;
   }
-  return `<div class="lane ${isVal?'val':''}" style="animation-delay:${i*45}ms">
+  const gm=showGame?`<span class="gm">${p.game}</span>`:"";
+  return `<div class="lane ${val?'val':''}" style="animation-delay:${d}ms">
     <div class="who"><span class="rk num">${i+1}</span>
-      <span class="nm">${p.name}</span><span class="tm">${p.team}</span></div>
+      <span class="nm">${p.name}</span><span class="tm">${p.team}</span>${gm}</div>
     <div class="prob">
-      <div class="track"><div class="fill" style="width:${w}%;animation-delay:${i*45+60}ms"></div></div>
+      <div class="track"><div class="fill" style="width:${w}%;animation-delay:${d+60}ms"></div></div>
       <span class="pct num">${(p.p_goal*100).toFixed(0)}%<small>P(goal)</small></span>
     </div>
     <div class="side">${side}</div>
@@ -247,26 +259,43 @@ function laneHTML(p,i){
 }
 
 function render(){
-  const host=document.getElementById("games");host.innerHTML="";
+  const host=document.getElementById("games");
+  host.className="games"+(view==="all"?" flat":"");
+  host.innerHTML="";
+  if(view==="all"){
+    let all=[];
+    for(const g of DATA.games) for(const p of g.players) all.push(Object.assign({game:g.game},p));
+    all.sort(sortFn);
+    if(valOnly) all=all.filter(isVal);
+    if(!all.length){host.innerHTML='<p style="color:var(--fg-faint)">No value bets on the board right now.</p>';return;}
+    const label=sortKey==="ev"?"by value":"by goal probability";
+    const card=document.createElement("section");card.className="game";
+    card.innerHTML=`<div class="match"><h2>All players</h2>`
+      +`<span class="tag">${all.length} · ${label}</span></div>`
+      +all.map((p,i)=>laneHTML(p,i,true)).join("");
+    host.appendChild(card);
+    return;
+  }
   for(const g of DATA.games){
-    let ps=g.players.slice().sort((a,b)=>{
-      const av=a[sortKey],bv=b[sortKey];
-      if(av==null&&bv==null)return b.p_goal-a.p_goal;
-      if(av==null)return 1; if(bv==null)return -1; return bv-av;
-    });
-    if(valOnly) ps=ps.filter(p=>p.ev!=null&&p.ev>0);
+    let ps=g.players.slice().sort(sortFn);
+    if(valOnly) ps=ps.filter(isVal);
     if(valOnly&&!ps.length) continue;
     const card=document.createElement("section");card.className="game";
     card.innerHTML=`<div class="match">
         <h2>${g.away}<span class="at">at</span>${g.home}</h2>
         <span class="tag">top 5</span>
-      </div>${ps.map(laneHTML).join("")}`;
+      </div>${ps.map((p,i)=>laneHTML(p,i)).join("")}`;
     host.appendChild(card);
   }
   if(!host.children.length)
     host.innerHTML='<p style="color:var(--fg-faint)">No value bets on the board right now.</p>';
 }
 
+document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
+  view=b.dataset.view;
+  document.querySelectorAll("[data-view]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render();
+});
 document.querySelectorAll("[data-sort]").forEach(b=>b.onclick=()=>{
   sortKey=b.dataset.sort;
   document.querySelectorAll("[data-sort]").forEach(x=>x.setAttribute("aria-pressed",x===b));
