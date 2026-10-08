@@ -24,10 +24,10 @@ HTML = r"""<!DOCTYPE html>
  * palette: warm charcoal oklch(17% .01 70) · ice oklch(80% .12 230) · value oklch(80% .16 155)
  * type: Fraunces (display) + Hanken Grotesk (ui/data) */
 :root{
-  --bg:oklch(16% .009 70); --bg-2:oklch(20% .011 70); --surface:oklch(23% .013 70);
-  --surface-2:oklch(26% .014 70);
-  --line:oklch(31% .012 70); --line-soft:oklch(27% .011 70);
-  --fg:oklch(96% .012 85); --fg-dim:oklch(74% .012 80); --fg-faint:oklch(60% .012 80);
+  --bg:oklch(15% .008 256); --bg-2:oklch(19% .009 256); --surface:oklch(21.5% .010 256);
+  --surface-2:oklch(25% .013 256);
+  --line:oklch(32% .013 256); --line-soft:oklch(26% .010 256);
+  --fg:oklch(97% .004 256); --fg-dim:oklch(76% .008 256); --fg-faint:oklch(61% .011 256);
   --ice:oklch(80% .12 232); --ice-2:oklch(87% .13 205);
   --pos:oklch(82% .17 152); --pos-dim:oklch(60% .12 152); --pos-bg:oklch(42% .10 152);
   --neg:oklch(70% .15 28); --warn:oklch(84% .13 85);
@@ -43,8 +43,8 @@ body{
   font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
   padding:clamp(18px,4vw,40px) clamp(14px,4vw,40px) 60px;
   background-image:
-    radial-gradient(60% 55% at 85% -8%, oklch(30% .05 232 / .5), transparent 70%),
-    radial-gradient(55% 50% at 5% 0%, oklch(26% .04 85 / .35), transparent 65%);
+    radial-gradient(65% 55% at 90% -12%, oklch(34% .08 232 / .42), transparent 70%),
+    radial-gradient(48% 44% at -2% 2%, oklch(32% .07 268 / .28), transparent 66%);
   background-attachment:fixed;
 }
 .num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -106,8 +106,8 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
   color:var(--fg-faint)}
 
 /* ---------- player lane ---------- */
-.lane{display:grid;grid-template-columns:1fr auto;gap:5px 14px;
-  padding:13px 10px 14px;border-radius:var(--r-sm);
+.lane{display:grid;grid-template-columns:1fr auto;gap:7px 14px;
+  padding:19px 11px 20px;border-radius:var(--r-sm);
   transition:background .18s var(--ease);
   opacity:0;transform:translateY(7px);animation:rise .5s var(--ease) forwards}
 @keyframes rise{to{opacity:1;transform:none}}
@@ -149,7 +149,7 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
   box-shadow:0 0 12px color-mix(in oklch,var(--ice),transparent 55%);
   animation:grow .7s var(--ease) both}
 @keyframes grow{from{transform:scaleX(0)}}
-.pct{font-weight:800;font-size:18px;color:var(--fg);min-width:52px;text-align:right}
+.pct{font-weight:800;font-size:18px;color:var(--fg);min-width:60px;text-align:right}
 .pct small{font-size:11px;font-weight:600;color:var(--fg-faint);display:block;line-height:1;
   margin-top:1px}
 
@@ -241,7 +241,7 @@ function laneHTML(p,i){
       <span class="nm">${p.name}</span><span class="tm">${p.team}</span></div>
     <div class="prob">
       <div class="track"><div class="fill" style="width:${w}%;animation-delay:${i*45+60}ms"></div></div>
-      <span class="pct num">${(p.p_goal*100).toFixed(0)}<small>P(goal)</small></span>
+      <span class="pct num">${(p.p_goal*100).toFixed(0)}%<small>P(goal)</small></span>
     </div>
     <div class="side">${side}</div>
   </div>`;
