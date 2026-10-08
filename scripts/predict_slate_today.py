@@ -60,20 +60,20 @@ def main():
         g = slate[slate.game_id == gid].sort_values("ens_g", ascending=False)
         print(f"=== {away} @ {home} ===")
         print(f"   {'player':<20}{'team':>4}{'P(goal)':>9}{'P(point)':>10}")
-        for rank, r in enumerate(g.head(3).itertuples(index=False), 1):
+        for rank, r in enumerate(g.head(5).itertuples(index=False), 1):
             print(f"   {str(r.name):<20}{r.team:>4}{r.ens_g:>8.1%}{r.ens_p:>10.1%}")
             rows.append({"date": date, "game": f"{away}@{home}", "rank": rank,
                          "player": r.name, "team": r.team,
                          "p_goal": round(float(r.ens_g), 4),
                          "p_point": round(float(r.ens_p), 4)})
         print()
-        # richer per-game board for the dashboard (top 15, odds slots to fill later)
+        # per-game board for the dashboard (top 5 only; odds slots filled later)
         players = [{"name": r.name, "team": r.team,
                     "p_goal": round(float(r.ens_g), 4),
                     "p_point": round(float(r.ens_p), 4),
                     "vegas_odds": None, "vegas_prob": None,
                     "edge": None, "ev": None}
-                   for r in g.head(15).itertuples(index=False)]
+                   for r in g.head(5).itertuples(index=False)]
         games_json.append({"game": f"{away}@{home}", "away": away, "home": home,
                            "players": players})
 

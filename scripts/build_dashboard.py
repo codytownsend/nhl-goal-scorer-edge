@@ -1,174 +1,280 @@
 """Generate a self-contained dashboard_<date>.html from predictions_<date>.json.
 
-Embeds the data as JS (no server, no CORS, shareable single file). Shows our
-P(goal) + fair/preferred odds next to Vegas's line, with edge and EV, +EV rows
-highlighted, and the API-calls-remaining badge. Rerun any time -- it reads the
-cached JSON, never the API.
+Organic, scannable redesign: top-5 players per game shown as probability lanes
+(not tables), with +EV players surfaced against the market. Data is embedded as
+a JS const (no server, no external fetch). Rerun any time; reads cached JSON.
 
 Usage: python -m scripts.build_dashboard 2026-10-08
 """
 import json
 import sys
 
-HTML = """<!DOCTYPE html>
+HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NHL Goal-Scorer Edge — __DATE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-/* design · archetype: dashboard · style: technical + editorial · axes: structure, signal-hue
- * brief: audience=quant bettor · decision=find +EV anytime-goal bets vs Vegas · tone=trading-terminal
- * palette: ink oklch(16% .02 260) · accent-pos oklch(72% .17 150) · type: system grotesk + ui-monospace */
+/* design · archetype: dashboard · style: organic-editorial + precise-data · axes: form, encoding
+ * brief: audience=bettor scanning tonight's slate · decision=who scores + where's value · tone=organic/digestible
+ * palette: warm charcoal oklch(17% .01 70) · ice oklch(80% .12 230) · value oklch(80% .16 155)
+ * type: Fraunces (display) + Hanken Grotesk (ui/data) */
 :root{
-  --ink:oklch(15% .018 260); --panel:oklch(19% .02 260); --panel-2:oklch(22% .022 260);
-  --line:oklch(31% .02 260); --line-soft:oklch(26% .018 260);
-  --fg:oklch(94% .01 260); --fg-dim:oklch(72% .015 260); --fg-faint:oklch(58% .015 260);
-  --pos:oklch(74% .17 150); --pos-bg:oklch(42% .11 150); --neg:oklch(66% .17 25); --warn:oklch(80% .13 85);
-  --accent:oklch(80% .12 230);
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --sp:8px; --radius:10px;
+  --bg:oklch(16% .009 70); --bg-2:oklch(20% .011 70); --surface:oklch(23% .013 70);
+  --surface-2:oklch(26% .014 70);
+  --line:oklch(31% .012 70); --line-soft:oklch(27% .011 70);
+  --fg:oklch(96% .012 85); --fg-dim:oklch(74% .012 80); --fg-faint:oklch(60% .012 80);
+  --ice:oklch(80% .12 232); --ice-2:oklch(87% .13 205);
+  --pos:oklch(82% .17 152); --pos-dim:oklch(60% .12 152); --pos-bg:oklch(42% .10 152);
+  --neg:oklch(70% .15 28); --warn:oklch(84% .13 85);
+  --font-display:"Fraunces",Georgia,serif;
+  --font-ui:"Hanken Grotesk",system-ui,sans-serif;
+  --r:18px; --r-sm:11px;
+  --ease:cubic-bezier(.2,.7,.2,1);
 }
 *{box-sizing:border-box}
 html,body{overflow-x:clip}
-body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--sans);
-  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
-  padding:clamp(16px,3vw,32px);}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+body{
+  margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-ui);
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding:clamp(18px,4vw,40px) clamp(14px,4vw,40px) 60px;
+  background-image:
+    radial-gradient(60% 55% at 85% -8%, oklch(30% .05 232 / .5), transparent 70%),
+    radial-gradient(55% 50% at 5% 0%, oklch(26% .04 85 / .35), transparent 65%);
+  background-attachment:fixed;
+}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.wrap{max-width:1180px;margin:0 auto}
 
-header{max-width:1200px;margin:0 auto clamp(20px,3vw,32px);}
-h1{font-size:clamp(20px,3.5vw,30px);font-weight:650;letter-spacing:-.02em;margin:0 0 6px}
-h1 .dot{color:var(--pos)}
-.meta{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--fg-faint);font-size:12.5px}
-.meta b{color:var(--fg-dim);font-weight:500}
-.badge{font-family:var(--mono);font-size:12px;padding:3px 9px;border-radius:999px;
-  border:1px solid var(--line);color:var(--fg-dim);white-space:nowrap}
-.badge.good{color:var(--pos);border-color:color-mix(in oklch,var(--pos),transparent 55%)}
-.badge.warnb{color:var(--warn);border-color:color-mix(in oklch,var(--warn),transparent 55%)}
-.badge.lowb{color:var(--neg);border-color:color-mix(in oklch,var(--neg),transparent 45%)}
+/* ---------- header ---------- */
+header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
+  justify-content:space-between;margin-bottom:26px}
+.brand h1{font-family:var(--font-display);font-optical-sizing:auto;font-weight:900;
+  font-size:clamp(26px,5vw,44px);line-height:.95;letter-spacing:-.02em;margin:0;
+  color:var(--fg)}
+.brand h1 em{font-style:italic;font-weight:500;color:var(--ice)}
+.brand p{margin:7px 0 0;color:var(--fg-faint);font-size:13.5px;max-width:46ch}
+.meta{display:flex;flex-wrap:wrap;gap:7px 14px;align-items:center;
+  font-size:12.5px;color:var(--fg-faint);text-align:right}
+.meta .k{color:var(--fg-dim);font-weight:600}
+.badge{font-weight:700;font-size:12px;padding:5px 11px;border-radius:999px;
+  border:1px solid var(--line);color:var(--fg-dim)}
+.badge.good{color:var(--pos);border-color:color-mix(in oklch,var(--pos),transparent 60%);
+  background:color-mix(in oklch,var(--pos),transparent 90%)}
+.badge.warnb{color:var(--warn);border-color:color-mix(in oklch,var(--warn),transparent 60%)}
+.badge.lowb{color:var(--neg);border-color:color-mix(in oklch,var(--neg),transparent 55%)}
 
-.controls{max-width:1200px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.controls .lbl{color:var(--fg-faint);font-size:12px;margin-right:2px}
-button.seg{font-family:var(--sans);font-size:12.5px;color:var(--fg-dim);background:var(--panel);
-  border:1px solid var(--line);padding:6px 11px;border-radius:7px;cursor:pointer;transition:.12s}
-button.seg:hover{border-color:var(--fg-faint)}
-button.seg[aria-pressed=true]{color:var(--ink);background:var(--fg);border-color:var(--fg)}
-button.seg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ---------- controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 22px}
+.seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line-soft);
+  border-radius:999px;padding:3px}
+.seg button{font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--fg-faint);
+  background:none;border:none;padding:7px 15px;border-radius:999px;cursor:pointer;
+  min-height:34px;transition:.18s var(--ease)}
+.seg button:hover{color:var(--fg-dim)}
+.seg button[aria-pressed=true]{background:var(--surface-2);color:var(--fg);
+  box-shadow:0 1px 0 oklch(100% 0 0 / .04),0 2px 8px oklch(0% 0 0 / .25)}
+.seg button:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+.toggle{margin-left:auto;display:inline-flex;align-items:center;gap:9px;
+  color:var(--fg-faint);font-size:13px;font-weight:600}
+.toggle input{appearance:none;width:40px;height:23px;border-radius:999px;background:var(--line);
+  position:relative;cursor:pointer;transition:.18s var(--ease);flex:none}
+.toggle input::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;
+  border-radius:50%;background:var(--fg);transition:.18s var(--ease)}
+.toggle input:checked{background:var(--pos-bg)}
+.toggle input:checked::after{transform:translateX(17px);background:var(--pos)}
+.toggle input:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
 
-main{max-width:1200px;margin:0 auto;display:grid;gap:clamp(14px,2vw,20px);
-  grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr))}
-.card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);overflow:hidden}
-.card h2{margin:0;padding:11px 14px;font-size:13px;font-weight:600;letter-spacing:.02em;
-  color:var(--fg);background:var(--panel-2);border-bottom:1px solid var(--line-soft);
-  display:flex;justify-content:space-between;align-items:baseline}
-.card h2 .away{color:var(--fg-dim)}
-.tbl{width:100%;overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{position:sticky;top:0;text-align:right;font-weight:500;color:var(--fg-faint);
-  font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;
-  border-bottom:1px solid var(--line-soft);white-space:nowrap;background:var(--panel)}
-thead th:first-child{text-align:left}
-tbody td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
-tbody td:first-child{text-align:left;font-weight:500}
-tbody tr:last-child td{border-bottom:none}
-.team{color:var(--fg-faint);font-size:11px;font-family:var(--mono);margin-left:6px}
-.pg{color:var(--fg)} .pt{color:var(--fg-faint);font-size:11.5px}
-.vg,.impl{color:var(--fg-dim)} .fair{color:var(--fg-dim)}
-.edge.p,.ev.p{color:var(--pos)} .edge.n,.ev.n{color:var(--neg)} .muted{color:var(--fg-faint)}
-tr.pos{background:linear-gradient(90deg,color-mix(in oklch,var(--pos-bg),transparent 78%),transparent 60%);
+/* ---------- game cards ---------- */
+.games{display:grid;gap:clamp(14px,2vw,22px);
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,500px),1fr))}
+.game{background:
+    linear-gradient(180deg, oklch(100% 0 0 / .018), transparent 40%),
+    var(--surface);
+  border:1px solid var(--line-soft);border-radius:var(--r);
+  padding:clamp(14px,2.2vw,22px);box-shadow:0 1px 2px oklch(0% 0 0 / .3)}
+.match{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid var(--line-soft)}
+.match h2{font-family:var(--font-display);font-weight:600;font-size:21px;margin:0;
+  letter-spacing:-.01em;color:var(--fg)}
+.match h2 .at{color:var(--fg-faint);font-style:italic;font-weight:400;padding:0 5px}
+.match .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--fg-faint)}
+
+/* ---------- player lane ---------- */
+.lane{display:grid;grid-template-columns:1fr auto;gap:5px 14px;
+  padding:13px 10px 14px;border-radius:var(--r-sm);
+  transition:background .18s var(--ease);
+  opacity:0;transform:translateY(7px);animation:rise .5s var(--ease) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.lane + .lane{border-top:1px solid var(--line-soft)}
+.lane:hover{background:oklch(100% 0 0 / .022)}
+.lane.val{background:
+  linear-gradient(90deg, color-mix(in oklch,var(--pos-bg),transparent 80%), transparent 55%);
   box-shadow:inset 3px 0 0 var(--pos)}
-tr.pos td:first-child{color:var(--fg)}
-.legend{max-width:1200px;margin:22px auto 0;color:var(--fg-faint);font-size:11.5px;line-height:1.6;
-  border-top:1px solid var(--line-soft);padding-top:14px}
-.legend code{font-family:var(--mono);color:var(--fg-dim)}
-.empty{color:var(--fg-faint);padding:20px;text-align:center;font-size:13px}
+.lane.val:hover{background:
+  linear-gradient(90deg, color-mix(in oklch,var(--pos-bg),transparent 72%), transparent 55%)}
+
+.who{grid-column:1;display:flex;align-items:baseline;gap:9px;min-width:0}
+.rk{font-family:var(--font-display);font-weight:500;font-size:15px;color:var(--fg-faint);
+  width:17px;flex:none;font-feature-settings:"tnum"}
+.nm{font-family:var(--font-display);font-weight:600;font-size:17px;color:var(--fg);
+  letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--fg-faint);flex:none}
+
+/* right column: the value chip / point stat */
+.side{grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;
+  align-items:flex-end;justify-content:center;gap:5px;text-align:right;min-width:92px}
+.chip{font-weight:800;font-size:14px;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.chip.pos{color:var(--pos);background:color-mix(in oklch,var(--pos),transparent 86%);
+  border:1px solid color-mix(in oklch,var(--pos),transparent 65%)}
+.chip.neg{color:var(--fg-faint);background:var(--bg-2);border:1px solid var(--line-soft)}
+.chip.none{color:var(--fg-faint);font-weight:600;font-size:12px;background:none;
+  border:1px dashed var(--line);padding:4px 9px}
+.odds{font-size:11.5px;color:var(--fg-faint)}
+.odds b{color:var(--fg-dim);font-weight:600}
+.pt{font-size:12px;color:var(--fg-faint)}
+.pt b{color:var(--fg-dim);font-weight:700}
+
+/* probability bar */
+.prob{grid-column:1;display:flex;align-items:center;gap:12px;margin-top:3px}
+.track{flex:1;height:11px;border-radius:999px;background:var(--bg-2);
+  box-shadow:inset 0 1px 2px oklch(0% 0 0 / .35);overflow:hidden;min-width:60px}
+.fill{height:100%;border-radius:999px;transform-origin:left;
+  background:linear-gradient(90deg,var(--ice),var(--ice-2));
+  box-shadow:0 0 12px color-mix(in oklch,var(--ice),transparent 55%);
+  animation:grow .7s var(--ease) both}
+@keyframes grow{from{transform:scaleX(0)}}
+.pct{font-weight:800;font-size:18px;color:var(--fg);min-width:52px;text-align:right}
+.pct small{font-size:11px;font-weight:600;color:var(--fg-faint);display:block;line-height:1;
+  margin-top:1px}
+
+/* ---------- legend ---------- */
+.legend{max-width:1180px;margin:30px auto 0;color:var(--fg-faint);font-size:12.5px;
+  line-height:1.7;border-top:1px solid var(--line-soft);padding-top:16px}
+.legend b{color:var(--fg-dim)}
+.legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;
+  vertical-align:middle;margin-right:4px;background:linear-gradient(90deg,var(--ice),var(--ice-2))}
+.legend .sw.v{background:var(--pos)}
+
+@media (max-width:420px){
+  .side{min-width:78px}
+  .nm{font-size:15.5px}
+}
+@media (prefers-reduced-motion:reduce){
+  .lane,.fill{animation:none;opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
+<div class="wrap">
 <header>
-  <h1>NHL Goal-Scorer Edge<span class="dot">.</span></h1>
+  <div class="brand">
+    <h1>Goal-Scorer <em>Edge</em></h1>
+    <p id="sub"></p>
+  </div>
   <div class="meta" id="meta"></div>
 </header>
+
 <div class="controls">
-  <span class="lbl">sort</span>
-  <button class="seg" data-sort="ev">EV</button>
-  <button class="seg" data-sort="edge">Edge</button>
-  <button class="seg" data-sort="p_goal" aria-pressed="true">P(goal)</button>
-  <span class="lbl" style="margin-left:10px">filter</span>
-  <button class="seg" data-filter="pos">+EV only</button>
+  <div class="seg" role="group" aria-label="sort order">
+    <button data-sort="p_goal" aria-pressed="true">Most likely</button>
+    <button data-sort="ev" aria-pressed="false">Best value</button>
+  </div>
+  <label class="toggle"><input type="checkbox" id="valonly">value bets only</label>
 </div>
-<main id="board"></main>
+
+<main class="games" id="games"></main>
+
 <div class="legend">
-  <b style="color:var(--fg-dim)">P(goal)/P(pt)</b> our ensemble model (rate + play-sequence GRU). ·
-  <b style="color:var(--fg-dim)">Fair</b> the American odds our P(goal) implies (break-even price). ·
-  <b style="color:var(--fg-dim)">Vegas</b> median anytime-scorer line (includes vig). ·
-  <b style="color:var(--fg-dim)">Edge</b> our P − Vegas implied. ·
-  <b style="color:var(--fg-dim)">EV</b> <code>P(goal)·decimal − 1</code> per $1 at Vegas's price. +EV rows glow.
-  <br>Roster-based before lineups post; opponent goalie not start-adjusted; GRU single-seed (±1–2pt). Not betting advice.
+  <span class="sw"></span><b>Goal bar</b> our model's chance the player scores (bar scaled to 50%). ·
+  <span class="sw v"></span><b>Value</b> positive expected value vs the Vegas price —
+  <b>EV</b> = how much each $1 bet returns on average. ·
+  <b>pt</b> chance of a point (goal or assist). ·
+  <b>fair</b> the odds our probability implies; <b>Veg</b> the actual line.
+  <br>Top 5 per game. Roster-based before lineups post; opponent goalie not start-adjusted. Not betting advice.
 </div>
+</div>
+
 <script>
 const DATA = __DATA__;
-let sortKey="p_goal", posOnly=false;
+let sortKey="p_goal", valOnly=false;
+const MAXP=0.5;
 
-function pct(x){return x==null?"—":(x*100).toFixed(1)+"%";}
-function am(o){if(o==null)return "—";o=Math.round(o);return (o>0?"+":"")+o;}
-function fair(p){if(p==null)return "—";let o=p>=0.5?-100*p/(1-p):100*(1-p)/p;return am(o);}
-function signed(x,isPct){if(x==null)return "—";const v=(x*100);return (v>=0?"+":"")+v.toFixed(1)+(isPct?"%":"");}
-function cls(x){return x==null?"muted":(x>0?"p":"n");}
+const pct=x=>x==null?"—":(x*100).toFixed(0)+"%";
+const pct1=x=>x==null?"—":((x>=0?"+":"")+(x*100).toFixed(1)+"%");
+const am=o=>o==null?"—":((o>0?"+":"")+Math.round(o));
+const fair=p=>p==null?"—":am(p>=0.5?-100*p/(1-p):100*(1-p)/p);
+
+function metaBar(){
+  const m=DATA, r=m.requests_remaining;
+  let badge='<span class="badge">odds not pulled</span>';
+  if(r!=null){const n=+r,c=n>100?"good":n>30?"warnb":"lowb";
+    badge=`<span class="badge ${c}">${n} / 500 calls left</span>`;}
+  document.getElementById("sub").textContent=
+    "Most likely goal scorers for tonight's slate, with value vs the market.";
+  const parts=[`<span><span class="k">${m.date}</span></span>`];
+  if(m.odds_pulled_at) parts.push(`<span>odds <span class="k">${m.odds_pulled_at.slice(11,16)}</span></span>`);
+  else if(m.generated) parts.push(`<span>built <span class="k">${m.generated.slice(11,16)}</span></span>`);
+  parts.push(badge);
+  document.getElementById("meta").innerHTML=parts.join("");
+}
+
+function laneHTML(p,i){
+  const isVal=p.ev!=null&&p.ev>0;
+  const w=Math.max(4,Math.min(100,(p.p_goal/MAXP)*100));
+  let side;
+  if(p.vegas_odds==null){
+    side=`<span class="chip none">no line yet</span>
+          <span class="pt">pt <b>${pct(p.p_point)}</b></span>`;
+  }else{
+    side=`<span class="chip ${isVal?'pos':'neg'}">${isVal?'+EV ':''}${pct1(p.ev)}</span>
+          <span class="odds"><b>Veg ${am(p.vegas_odds)}</b> · fair ${fair(p.p_goal)}</span>
+          <span class="pt">pt <b>${pct(p.p_point)}</b></span>`;
+  }
+  return `<div class="lane ${isVal?'val':''}" style="animation-delay:${i*45}ms">
+    <div class="who"><span class="rk num">${i+1}</span>
+      <span class="nm">${p.name}</span><span class="tm">${p.team}</span></div>
+    <div class="prob">
+      <div class="track"><div class="fill" style="width:${w}%;animation-delay:${i*45+60}ms"></div></div>
+      <span class="pct num">${(p.p_goal*100).toFixed(0)}<small>P(goal)</small></span>
+    </div>
+    <div class="side">${side}</div>
+  </div>`;
+}
 
 function render(){
-  const meta=DATA;
-  const badge=(()=>{
-    const r=meta.requests_remaining;
-    if(r==null) return '<span class="badge">odds not pulled</span>';
-    const n=+r, c=n>100?"good":n>30?"warnb":"lowb";
-    return `<span class="badge ${c}">${n} / 500 API calls left</span>`;
-  })();
-  document.getElementById("meta").innerHTML=
-    `<span><b>${meta.date}</b> slate · ${meta.games.length} games</span>`+
-    `<span>generated <b>${(meta.generated||"").replace("T"," ")}</b></span>`+
-    (meta.odds_pulled_at?`<span>odds <b>${meta.odds_pulled_at.replace("T"," ")}</b></span>`:"")+
-    `<span>${meta.odds_source||"our model only — no odds yet"}</span>`+badge;
-
-  const board=document.getElementById("board");board.innerHTML="";
-  for(const g of meta.games){
-    let ps=g.players.slice();
-    ps.sort((a,b)=>{
-      const av=a[sortKey], bv=b[sortKey];
+  const host=document.getElementById("games");host.innerHTML="";
+  for(const g of DATA.games){
+    let ps=g.players.slice().sort((a,b)=>{
+      const av=a[sortKey],bv=b[sortKey];
       if(av==null&&bv==null)return b.p_goal-a.p_goal;
       if(av==null)return 1; if(bv==null)return -1; return bv-av;
     });
-    if(posOnly) ps=ps.filter(p=>p.ev!=null&&p.ev>0);
-    const card=document.createElement("section");card.className="card";
-    const rows=ps.map(p=>{
-      const isPos=p.ev!=null&&p.ev>0;
-      return `<tr class="${isPos?'pos':''}">
-        <td>${p.name}<span class="team">${p.team}</span></td>
-        <td class="num pg">${pct(p.p_goal)}</td>
-        <td class="num fair">${fair(p.p_goal)}</td>
-        <td class="num vg">${am(p.vegas_odds)}</td>
-        <td class="num impl">${pct(p.vegas_prob)}</td>
-        <td class="num edge ${cls(p.edge)}">${signed(p.edge,true)}</td>
-        <td class="num ev ${cls(p.ev)}">${signed(p.ev,true)}</td>
-        <td class="num pt">${pct(p.p_point)}</td></tr>`;
-    }).join("");
-    card.innerHTML=`<h2><span><span class="away">${g.away}</span> @ ${g.home}</span></h2>
-      <div class="tbl"><table><thead><tr>
-        <th>Player</th><th>P(goal)</th><th>Fair</th><th>Vegas</th>
-        <th>Impl</th><th>Edge</th><th>EV</th><th>P(pt)</th>
-      </tr></thead><tbody>${rows||'<tr><td colspan="8" class="empty">no +EV plays</td></tr>'}</tbody></table></div>`;
-    board.appendChild(card);
+    if(valOnly) ps=ps.filter(p=>p.ev!=null&&p.ev>0);
+    if(valOnly&&!ps.length) continue;
+    const card=document.createElement("section");card.className="game";
+    card.innerHTML=`<div class="match">
+        <h2>${g.away}<span class="at">at</span>${g.home}</h2>
+        <span class="tag">top 5</span>
+      </div>${ps.map(laneHTML).join("")}`;
+    host.appendChild(card);
   }
+  if(!host.children.length)
+    host.innerHTML='<p style="color:var(--fg-faint)">No value bets on the board right now.</p>';
 }
+
 document.querySelectorAll("[data-sort]").forEach(b=>b.onclick=()=>{
   sortKey=b.dataset.sort;
   document.querySelectorAll("[data-sort]").forEach(x=>x.setAttribute("aria-pressed",x===b));
   render();
 });
-const fb=document.querySelector("[data-filter]");
-fb.onclick=()=>{posOnly=!posOnly;fb.setAttribute("aria-pressed",posOnly);render();};
-render();
+document.getElementById("valonly").onchange=e=>{valOnly=e.target.checked;render();};
+metaBar();render();
 </script>
 </body>
 </html>

@@ -19,7 +19,7 @@ data/loso_predictions.parquet
 predictions_*.json
 predictions_*.csv
 dashboard_*.html
-dashboard_preview.png
+dashboard_*.png
 site/
 
 # source odds files not used by the board
