@@ -105,54 +105,57 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 .match .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
   color:var(--fg-faint)}
 
-/* ---------- player lane ---------- */
-.lane{display:grid;grid-template-columns:1fr auto;gap:7px 14px;
-  padding:1rem;border-radius:var(--r-sm);
+/* ---------- player lane (tiered: identity+value / bar / detail) ---------- */
+.lane{display:flex;flex-direction:column;gap:10px;
+  padding:16px 14px;border-radius:var(--r-sm);
   transition:background .18s var(--ease);
   opacity:0;transform:translateY(7px);animation:rise .5s var(--ease) forwards}
 @keyframes rise{to{opacity:1;transform:none}}
 .lane + .lane{border-top:1px solid var(--line-soft)}
 .lane:hover{background:oklch(100% 0 0 / .022)}
 .lane.val{background:
-  linear-gradient(90deg, color-mix(in oklch,var(--pos-bg),transparent 80%), transparent 55%);
+  linear-gradient(90deg, color-mix(in oklch,var(--pos-bg),transparent 82%), transparent 60%);
   box-shadow:inset 3px 0 0 var(--pos)}
 .lane.val:hover{background:
-  linear-gradient(90deg, color-mix(in oklch,var(--pos-bg),transparent 72%), transparent 55%)}
+  linear-gradient(90deg, color-mix(in oklch,var(--pos-bg),transparent 74%), transparent 60%)}
 
-.who{grid-column:1;display:flex;align-items:baseline;gap:9px;min-width:0}
+/* tier 1: who + value chip */
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.who{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
 .rk{font-family:var(--font-display);font-weight:500;font-size:15px;color:var(--fg-faint);
   width:17px;flex:none;font-feature-settings:"tnum"}
 .nm{font-family:var(--font-display);font-weight:600;font-size:17px;color:var(--fg);
   letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tm{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--fg-faint);flex:none}
 .gm{font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--ice);opacity:.8;flex:none}
-
-/* right column: the value chip / point stat */
-.side{grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;
-  align-items:flex-end;justify-content:center;gap:5px;text-align:right;min-width:92px}
-.chip{font-weight:800;font-size:14px;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.chip{font-weight:800;font-size:13.5px;padding:4px 11px;border-radius:999px;white-space:nowrap;
+  flex:none;font-variant-numeric:tabular-nums}
 .chip.pos{color:var(--pos);background:color-mix(in oklch,var(--pos),transparent 86%);
   border:1px solid color-mix(in oklch,var(--pos),transparent 65%)}
 .chip.neg{color:var(--fg-faint);background:var(--bg-2);border:1px solid var(--line-soft)}
 .chip.none{color:var(--fg-faint);font-weight:600;font-size:12px;background:none;
-  border:1px dashed var(--line);padding:4px 9px}
-.odds{font-size:11.5px;color:var(--fg-faint)}
-.odds b{color:var(--fg-dim);font-weight:600}
-.pt{font-size:12px;color:var(--fg-faint)}
-.pt b{color:var(--fg-dim);font-weight:700}
+  border:1px dashed var(--line);padding:4px 10px}
 
-/* probability bar */
-.prob{grid-column:1;display:flex;align-items:center;gap:12px;margin-top:3px}
-.track{flex:1;height:11px;border-radius:999px;background:var(--bg-2);
+/* tier 2: probability bar */
+.prob{display:flex;align-items:center;gap:13px}
+.track{flex:1;height:12px;border-radius:999px;background:var(--bg-2);
   box-shadow:inset 0 1px 2px oklch(0% 0 0 / .35);overflow:hidden;min-width:60px}
 .fill{height:100%;border-radius:999px;transform-origin:left;
   background:linear-gradient(90deg,var(--ice),var(--ice-2));
   box-shadow:0 0 12px color-mix(in oklch,var(--ice),transparent 55%);
   animation:grow .7s var(--ease) both}
 @keyframes grow{from{transform:scaleX(0)}}
-.pct{font-weight:800;font-size:18px;color:var(--fg);min-width:60px;text-align:right}
-.pct small{font-size:11px;font-weight:600;color:var(--fg-faint);display:block;line-height:1;
-  margin-top:1px}
+.pct{font-weight:800;font-size:19px;color:var(--fg);min-width:62px;text-align:right;
+  font-variant-numeric:tabular-nums;line-height:1}
+.pct small{font-size:10.5px;font-weight:600;color:var(--fg-faint);display:block;line-height:1;
+  margin-top:3px;letter-spacing:.02em}
+
+/* tier 3: detail line */
+.detail{font-size:12.5px;color:var(--fg-faint);font-variant-numeric:tabular-nums}
+.detail b{color:var(--fg-dim);font-weight:700}
+.detail .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--fg-faint);margin-right:3px}
+.detail .sep{opacity:.45;padding:0 7px}
 
 /* ---------- legend ---------- */
 .legend{max-width:1180px;margin:30px auto 0;color:var(--fg-faint);font-size:12.5px;
@@ -163,8 +166,8 @@ header{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;
 .legend .sw.v{background:var(--pos)}
 
 @media (max-width:420px){
-  .side{min-width:78px}
   .nm{font-size:15.5px}
+  .detail{font-size:12px}
 }
 @media (prefers-reduced-motion:reduce){
   .lane,.fill{animation:none;opacity:1;transform:none}
@@ -237,24 +240,28 @@ function laneHTML(p,i,showGame){
   const val=isVal(p);
   const w=Math.max(4,Math.min(100,(p.p_goal/MAXP)*100));
   const d=Math.min(i,14)*45;
-  let side;
-  if(p.vegas_odds==null){
-    side=`<span class="chip none">no line yet</span>
-          <span class="pt">pt <b>${pct(p.p_point)}</b> · fair ${fair(p.p_point)}</span>`;
-  }else{
-    side=`<span class="chip ${val?'pos':'neg'}">${val?'+EV ':''}${pct1(p.ev)}</span>
-          <span class="odds"><b>Veg ${am(p.vegas_odds)}</b> · fair ${fair(p.p_goal)}</span>
-          <span class="pt">pt <b>${pct(p.p_point)}</b> · fair ${fair(p.p_point)}</span>`;
-  }
   const gm=showGame?`<span class="gm">${p.game}</span>`:"";
+  const ptPart=`<span class="lbl">point</span><b>${pct(p.p_point)}</b> (fair ${fair(p.p_point)})`;
+  let chip, detail;
+  if(p.vegas_odds==null){
+    chip=`<span class="chip none">no line yet</span>`;
+    detail=ptPart;
+  }else{
+    chip=`<span class="chip ${val?'pos':'neg'}">${val?'+EV ':''}${pct1(p.ev)}</span>`;
+    detail=`<span class="lbl">goal</span><b>${am(p.vegas_odds)}</b> (fair ${fair(p.p_goal)})`
+          +`<span class="sep">·</span>${ptPart}`;
+  }
   return `<div class="lane ${val?'val':''}" style="animation-delay:${d}ms">
-    <div class="who"><span class="rk num">${i+1}</span>
-      <span class="nm">${p.name}</span><span class="tm">${p.team}</span>${gm}</div>
+    <div class="top">
+      <div class="who"><span class="rk num">${i+1}</span>
+        <span class="nm">${p.name}</span><span class="tm">${p.team}</span>${gm}</div>
+      ${chip}
+    </div>
     <div class="prob">
       <div class="track"><div class="fill" style="width:${w}%;animation-delay:${d+60}ms"></div></div>
       <span class="pct num">${(p.p_goal*100).toFixed(0)}%<small>P(goal)</small></span>
     </div>
-    <div class="side">${side}</div>
+    <div class="detail">${detail}</div>
   </div>`;
 }
 
