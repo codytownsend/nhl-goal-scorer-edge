@@ -49,17 +49,20 @@ class GRUNet(nn.Module):
         return self.head(hn[-1]).squeeze(-1)
 
 
-def train_gru(Xtr, ttr, Xte, mode, epochs=25, bs=512):
-    """mode='binary' -> BCE on scored; mode='poisson' -> Poisson NLL on goal count.
-    Returns P(scores>=1) on the test set either way."""
-    mu, sd = Xtr.mean((0, 1)), Xtr.std((0, 1)) + 1e-6
-    Xtr = (Xtr - mu) / sd
-    Xte = (Xte - mu) / sd
+def fit_gru(Xtr, ttr, mode, epochs=25, bs=512, seed=None):
+    """Train a GRU and return (net, mu, sd). seed=0 for a reproducible model."""
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+    mu = np.asarray(Xtr.mean((0, 1)))
+    sd = np.asarray(Xtr.std((0, 1))) + 1e-6
+    Xn = (Xtr - mu) / sd
     net = GRUNet(Xtr.shape[2])
     opt = torch.optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-5)
     lossf = nn.BCEWithLogitsLoss() if mode == "binary" else \
         nn.PoissonNLLLoss(log_input=True, full=False)
-    Xt = torch.tensor(Xtr); tt = torch.tensor(ttr.astype(np.float32))
+    Xt = torch.tensor(Xn, dtype=torch.float32)
+    tt = torch.tensor(ttr.astype(np.float32))
     n = len(Xt)
     for _ in range(epochs):
         net.train()
@@ -69,12 +72,39 @@ def train_gru(Xtr, ttr, Xte, mode, epochs=25, bs=512):
             loss = lossf(net(Xt[idx]), tt[idx])
             loss.backward(); opt.step()
     net.eval()
+    return (net, torch.tensor(mu, dtype=torch.float32),
+            torch.tensor(sd, dtype=torch.float32))
+
+
+def predict_gru(net, mu, sd, Xte, mode="binary"):
+    """P(scores>=1) for new sequences from a trained GRU."""
+    Xn = (torch.tensor(np.asarray(Xte), dtype=torch.float32) - mu) / sd
     with torch.no_grad():
-        out = net(torch.tensor(Xte)).numpy()
+        out = net(Xn).numpy()
     if mode == "binary":
-        return 1 / (1 + np.exp(-out))               # P(>=1) directly
-    lam = np.exp(out)                                # expected goal count
-    return 1 - np.exp(-lam)                          # P(>=1) = 1 - e^-lambda
+        return 1 / (1 + np.exp(-out))
+    return 1 - np.exp(-np.exp(out))                 # poisson -> P(>=1)
+
+
+def save_gru(net, mu, sd, path):
+    torch.save({"state": net.state_dict(), "mu": mu, "sd": sd}, path)
+
+
+def load_gru(path):
+    try:
+        d = torch.load(path, weights_only=True)
+    except TypeError:                               # older torch w/o weights_only
+        d = torch.load(path)
+    net = GRUNet(int(d["mu"].shape[0]))
+    net.load_state_dict(d["state"])
+    net.eval()
+    return net, d["mu"], d["sd"]
+
+
+def train_gru(Xtr, ttr, Xte, mode, epochs=25, bs=512):
+    """Train-then-predict in one call (used by the eval scripts)."""
+    net, mu, sd = fit_gru(Xtr, ttr, mode, epochs, bs)
+    return predict_gru(net, mu, sd, Xte, mode)
 
 
 def main():

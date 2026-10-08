@@ -38,6 +38,16 @@ def logit(p):
     return np.log(p / (1 - p))
 
 
+def _gru_probs(path, Xtr, y, Xsl):
+    """Load the saved GRU and predict; if weights are missing, train+save once."""
+    if os.path.exists(path):
+        net, mu, sd = FP.load_gru(path)
+    else:
+        net, mu, sd = FP.fit_gru(Xtr, y, "binary", seed=0)
+        FP.save_gru(net, mu, sd, path)
+    return FP.predict_gru(net, mu, sd, Xsl, "binary")
+
+
 def per_game_vectors(season):
     """Per (game, player) 12-feature play vector, ordered chronologically."""
     ev = pd.read_parquet(f"data/events_{season}.parquet")
@@ -134,8 +144,8 @@ def compute_slate(gnew, lnew, names):
 
     seqs, have = slate_sequences(set(slate.player_id))
     Xsl = np.stack([seqs[p] for p in have]) if have else np.zeros((0, L, 12), np.float32)
-    pg = FP.train_gru(Xtr, ytr_g, Xsl, "binary") if have else np.array([])
-    pp = FP.train_gru(Xtr, ytr_p, Xsl, "binary") if have else np.array([])
+    pg = _gru_probs("data/gru_goal.pt", Xtr, ytr_g, Xsl) if have else np.array([])
+    pp = _gru_probs("data/gru_point.pt", Xtr, ytr_p, Xsl) if have else np.array([])
     gru_g = dict(zip(have, pg)); gru_p = dict(zip(have, pp))
 
     # players w/o a 10-game window fall back to the rate number (no GRU tilt)
