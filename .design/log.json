@@ -1,5 +1,8 @@
 [
+  { "date": "2026-10-08", "scope": "page", "archetype": "Leaderboard/Dashboard",
+    "style": "broadcast-quant + instrument", "axes": ["temperature", "register"],
+    "brief": "NHL Goal-Scorer Edge · sharp bettor · signature ice/gold edge-meter; cold=likelihood, warm=value; Archivo + JetBrains Mono" },
   { "date": "2026-10-08", "scope": "page", "archetype": "Dashboard",
     "style": "organic-editorial + precise-data", "axes": ["form", "encoding"],
-    "brief": "NHL Goal-Scorer Edge · bettor scanning tonight's slate · organic/digestible · probability lanes not tables" }
+    "brief": "NHL Goal-Scorer Edge · bettor scanning tonight's slate · probability lanes not tables (superseded)" }
 ]
