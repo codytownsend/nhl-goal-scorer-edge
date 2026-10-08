@@ -240,11 +240,11 @@ function laneHTML(p,i,showGame){
   let side;
   if(p.vegas_odds==null){
     side=`<span class="chip none">no line yet</span>
-          <span class="pt">pt <b>${pct(p.p_point)}</b></span>`;
+          <span class="pt">pt <b>${pct(p.p_point)}</b> · fair ${fair(p.p_point)}</span>`;
   }else{
     side=`<span class="chip ${val?'pos':'neg'}">${val?'+EV ':''}${pct1(p.ev)}</span>
           <span class="odds"><b>Veg ${am(p.vegas_odds)}</b> · fair ${fair(p.p_goal)}</span>
-          <span class="pt">pt <b>${pct(p.p_point)}</b></span>`;
+          <span class="pt">pt <b>${pct(p.p_point)}</b> · fair ${fair(p.p_point)}</span>`;
   }
   const gm=showGame?`<span class="gm">${p.game}</span>`:"";
   return `<div class="lane ${val?'val':''}" style="animation-delay:${d}ms">
