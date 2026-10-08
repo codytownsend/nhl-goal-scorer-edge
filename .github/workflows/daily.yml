@@ -1,0 +1,63 @@
+name: Daily goal-scorer board
+
+on:
+  schedule:
+    - cron: "0 21 * * *"          # 21:00 UTC (~4-5pm ET) — after the full slate's lines post
+  workflow_dispatch:
+    inputs:
+      pull_odds:
+        description: "Pull Vegas odds (spends ~10 API credits)"
+        default: "true"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Build board
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        run: |
+          DATE=$(TZ=America/New_York date +%F)
+          echo "Building board for $DATE"
+          python -m scripts.predict_slate_today "$DATE"
+          if [ "${{ github.event.inputs.pull_odds || 'true' }}" = "true" ]; then
+            python -m scripts.merge_odds "$DATE" || echo "odds pull skipped/failed — board shows model only"
+          fi
+          python -m scripts.build_dashboard "$DATE"
+          mkdir -p site
+          cp "dashboard_$DATE.html" site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,27 @@
+# secrets
+.oddskey
+
+# python
+__pycache__/
+*.pyc
+
+# large caches / data not needed at predict time (3.2GB of shift+pbp JSON)
+data/raw/
+data/allevents_*.parquet
+data/recent_behavior.parquet
+data/onice_playergames.parquet
+data/sim_support.parquet
+data/pprole_test.parquet
+data/edge_skater_test.parquet
+data/loso_predictions.parquet
+
+# generated outputs (CI regenerates these each run)
+predictions_*.json
+predictions_*.csv
+dashboard_*.html
+dashboard_preview.png
+site/
+
+# source odds files not used by the board
+*.xlsx
+sportsbook-*.csv
