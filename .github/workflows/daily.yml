@@ -2,7 +2,10 @@ name: Daily goal-scorer board
 
 on:
   schedule:
-    - cron: "0 21 * * *"          # 21:00 UTC (~4-5pm ET) — after the full slate's lines post
+    # 2:45 PM Central year-round. Actions cron is UTC-only and ignores DST, so we
+    # list both offsets; the `gate` job below lets only the correct one through.
+    - cron: "45 19 * * *"         # 14:45 CT during CDT (summer, UTC-5)
+    - cron: "45 20 * * *"         # 14:45 CT during CST (winter, UTC-6)
   workflow_dispatch:
     inputs:
       pull_odds:
@@ -19,7 +22,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Both cron triggers fire (an hour apart); only the one that is 2:45 PM Central
+  # right now proceeds. Manual (workflow_dispatch) runs always proceed.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "manual run — proceeding"
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$(TZ=America/Chicago date +%H)" = "14" ]; then
+            echo "2:45 PM Central — proceeding"
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "not 2:45 PM Central (hour=$(TZ=America/Chicago date +%H) CT) — skipping this trigger"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-deploy:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
